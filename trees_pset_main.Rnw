@@ -1,0 +1,235 @@
+\documentclass[11pt]{book}
+
+%%%%% russian xetex
+\usepackage{fontspec}
+\usepackage{polyglossia}
+
+\setmainlanguage{russian}
+\setotherlanguages{english}
+
+% download "Linux Libertine" fonts:
+% http://www.linuxlibertine.org/index.php?id=91&L=1
+\setmainfont{Linux Libertine O} % or Helvetica, Arial, Cambria
+% why do we need \newfontfamily:
+% http://tex.stackexchange.com/questions/91507/
+\newfontfamily{\cyrillicfonttt}{Linux Libertine O}
+%%%%% end russian xetex
+
+
+\usepackage{tikz}
+
+\usepackage{amsmath, amssymb, amsthm, mathrsfs, amsfonts, dsfont, fancyhdr}
+\usepackage{amscd}
+\usepackage{makeidx}
+\usepackage[colorlinks = true]{hyperref}
+
+
+\usepackage[left = 2cm, right = 2cm, top = 2cm, bottom = 2cm]{geometry}
+
+\usepackage{enumitem}
+\usepackage{answers} % дележка ответов и вопросов
+
+\newcommand{\e}{\varepsilon}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Cov}{\mathbb{C}\mathrm{ov}}
+\newcommand{\Corr}{\mathbb{C}\mathrm{orr}}
+\newcommand{\Var}{\mathbb{V}\mathrm{ar}}
+\newcommand{\cF}{\mathcal{F}}
+\newcommand{\hb}{\hat{\beta}}
+\newcommand{\hs}{\hat{\sigma}}
+\newcommand{\he}{\hat{\e}}
+\newcommand{\hy}{\hat{y}}
+
+
+\let\P\relax
+\newcommand{\P}{\mathbb{P}}
+
+
+% не включаем в текст, тк есть репозиторий, однако для облегчения работы с репой:
+% makefile: zip all tex, здесь сделать ссылку на zip - для воспроизводимости неплохо бы :)
+
+\usepackage[matrix, arrow, curve]{xy}
+\usepackage{soul}
+\usepackage{color}
+
+\usepackage{booktabs}
+
+\title{xgboost для dummies}
+\author{Винни-Пух}
+\date{\today}
+
+\newtheoremstyle{mythm}{\topsep}{\topsep}{\it}{\parindent}{\bfseries}{.}{.5em}{}
+\newtheoremstyle{mydef}{\topsep}{\topsep}{}{\parindent}{\bfseries}{.}{.5em}{}
+
+
+\theoremstyle{mythm}
+\newtheorem{Proposition}{Утверждение}[chapter]
+\newtheorem{Lemma}{Лемма}[chapter]
+\newtheorem{Theorem}{Теорема}[chapter]
+\newtheorem{Corollary}{Следствие}[chapter]
+
+
+\theoremstyle{mydef}
+\newtheorem{Definition}{Определение}[chapter]
+\newtheorem{Example}{Пример}[chapter]
+\newtheorem{Task}{Задача}[chapter]
+\newtheorem{Exercise}{Упражнение}[chapter]
+\newtheorem{Remark}{Замечание}[chapter]
+\newtheorem{Question}{Вопрос}[chapter]
+
+%\newtheorem{solution}{Решение}
+\newtheorem{question}{Задача}
+
+
+\renewenvironment{proof}
+    {\ifhmode\par\fi\addvspace{\topsep}\leavevmode{\it Доказательство.}}
+    {\hfill$\scriptstyle\blacksquare$\par\addvspace{\topsep}}
+
+% \newenvironment{solution}
+%     {\ifhmode\par\fi\addvspace{\topsep}\leavevmode{\it Решение.}}
+%     {\hfill$\scriptstyle\blacksquare$\par\addvspace{\topsep}}
+
+\pagestyle{fancy}
+
+\renewcommand{\chaptermark}[1]{\markboth{\chaptername\ \thechapter.\ #1}{}}
+\renewcommand{\sectionmark}[1]{\markright{\thesection.\ #1}}
+
+\fancyhead[LE,RO]{\small \thepage}
+\fancyhead[RE]{\small \leftmark}
+\fancyhead[LO]{\small \rightmark} %{\bfseries \leftmark}
+
+\makeindex
+
+
+\theoremstyle{definition}
+%\newtheorem{problem}{Задача}
+%\numberwithin{problem}{chapter}
+
+\Newassociation{sol}{solution}{solution_file}
+% sol --- имя окружения внутри задач
+% solution --- имя окружения внутри solution_file
+% solution_file --- имя файла в который будет идти запись решений
+% можно изменить далее по ходу
+
+% very useful during de-bugging!
+% \usepackage[left]{showlabels}
+% \showlabels{hypertarget}
+% \showlabels{hyperlink}
+
+\newlist{myenum}{enumerate}{3}
+\newcounter{problem}[chapter]
+\newenvironment{problem}%
+  {%
+  \refstepcounter{problem}%
+  %  hyperlink to solution
+       \hypertarget{problem:{\thechapter.\theproblem}}{}%
+       \Writetofile{solution_file}{\protect\hypertarget{soln:\thechapter.\theproblem}{}}%
+       \begin{myenum}[label=\bfseries\protect\hyperlink{soln:\thechapter.\theproblem}{\thechapter.\theproblem},ref=\thechapter.\theproblem]
+       \item%
+      }%
+      {%
+      \end{myenum}}
+
+
+
+\begin{document}
+\maketitle
+
+
+
+\chapter*{Предисловие}
+
+План:
+
+1. Энтропия/Джини
+
+Распределения максимизирующие энтропию? что-то про ROC кривые до кучи?
+
+2. Одиноко стоящий дуб
+
+Типичное заданичие: Вырастить дерево согласно такому-то критерию. Сюда борьбу с NA. Сюда же регуляризацию? Или отдельно?
+
+3. Логит-модель 
+
+Логистическое распределение? Перевод y=0/1 в y=-1/1. Максимум правдоподобия в минимум штрафа? Предельные эффекты?
+
+4. Мини-мими-лес
+
+Типичное: Два-три дерева. По ним построить прогноз/оценить важность переменных. Что еще?
+
+5. Регуляризация.
+
+Общая идея. Парадокс James-Stein. Для среднего, для регрессии, для дерева. L1 и L2.
+
+6. Про кросс-валидацию? 
+
+Как это делать руками? Какие тут теоретические задачи?
+
+Упр: Дано одно-два-три дерева. И 5 наблюдений. Посчитать кросс-валидационную ошибку.
+
+Упр: На наборе данных в 5 наблюдений подобрать параметр жесткости с помощью кросс-валидации.
+
+7. Несколько практических упражнений. 
+
+Упр: сделайте с дефолтными параметрами и ответьте на все подробности про алгоритм
+
+тут решения в python/R.
+
+Упр: Нарисуйте дерево номер 5.
+
+Из теории:
+
+- определения
+
+- табличка с параметрами xgboost, rforest
+
+- несколько практик подбора параметров
+
+
+
+
+
+<<message=FALSE>>=
+library("knitr") # грамотное программирование
+library("tikzDevice") # сохранение графиков в формате tikz
+
+library("tidyverse") # Хэдли на нашей стороне 
+library("xtable")
+
+theme_set(theme_bw()) # чёрно-белая тема для графиков
+@
+
+
+
+
+<<child='chapters/000_unclassified.Rnw'>>=
+@
+
+
+
+
+\chapter{Решения и ответы к избранным задачам}
+\chaptermark{Избранные решения}
+
+
+% для гиперссылок на условия
+% http://tex.stackexchange.com/questions/45415
+\renewenvironment{solution}[1]{%
+         % add some glue
+         \vskip .5cm plus 2cm minus 0.1cm%
+         {\bfseries \hyperlink{problem:#1}{#1.}}%
+}%
+{%
+}%
+
+
+
+\input{solutions/sols_000}
+
+
+
+\chapter*{Список обозначений}
+
+\tableofcontents
+
+\end{document}
