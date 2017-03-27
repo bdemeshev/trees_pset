@@ -17,6 +17,7 @@
 
 
 \usepackage{tikz}
+\usepackage{forest}
 
 \usepackage{amsmath, amssymb, amsthm, mathrsfs, amsfonts, dsfont, fancyhdr}
 \usepackage{amscd}
